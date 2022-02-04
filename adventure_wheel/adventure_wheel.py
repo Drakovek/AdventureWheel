@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from os import get_terminal_size
+from os import get_terminal_size, listdir, walk
+from os.path import abspath, basename, join
 from time import sleep
 from typing import List
 
@@ -35,6 +36,69 @@ def get_color(color:str=None) -> str:
     else:
         # Default
         return "\033[0m"
+
+def get_file_list(directory:str=None) -> List[List[str]]:
+    """
+    Returns a list of text files in a given directory and its subdirectories.
+    Entries are listed as [AbsolutePath, Filename Minus Extension]
+
+    :param directory: Directory in which to search for files, defaults to None
+    :type directory: str, optional
+    :return: List of text files in the given directory
+    :rtype: list[list[str]]
+    """
+    # Return empty list if directory is invalid
+    if directory is None:
+        return []
+    # Get all subdirectories within the given directory
+    dirs = []
+    path = abspath(directory)
+    for p in walk(path):
+        dirs.append(abspath(p[0]))
+    # Get list of text files
+    files = []
+    for folder in dirs:
+        for file in listdir(folder):
+            if str(file).endswith(".txt"):
+                files.append(abspath(join(folder, file)))
+    # Add basenames to get file, filename pair
+    files.sort()
+    pairs = []
+    for file in files:
+        pairs.append([str(file), basename(file)[:-4]])
+    # Return list of files
+    return pairs
+
+def read_file_as_lines(file:str=None) -> List[str]:
+    """
+    Reads a given text file and separates lines into separate list entries.
+
+    :param file: Text file to read, defaults to None
+    :type file: str, optional
+    :return: List of lines in the given text file
+    :rtype: str
+    """
+    # Return empty list if given file is invalid
+    if file is None:
+        return []
+    # Read text file
+    try:
+        with open(file) as f:
+            contents = f.read()
+    except FileNotFoundError:
+        # Return empty list if file doesn't exist
+        return []
+    # Separate into separate lines
+    lines = contents.split("\n")
+    # Remove any carriage return characters
+    for i in range(0, len(lines)):
+        lines[i] = lines[i].replace("\r", "")
+    # Remove empty entries
+    for i in range(len(lines)-1, -1, -1):
+        if lines[i] == "":
+            del lines[i]
+    # Return lines
+    return lines
 
 def split_markers(string:str=None) -> List[str]:
     """

@@ -5,10 +5,29 @@ from adventure_wheel.adventure_wheel import format_story_text
 from adventure_wheel.adventure_wheel import get_characters
 from adventure_wheel.adventure_wheel import get_color
 from adventure_wheel.adventure_wheel import get_decision_text
+from adventure_wheel.adventure_wheel import get_file_list
 from adventure_wheel.adventure_wheel import get_link_options
+from adventure_wheel.adventure_wheel import read_file_as_lines
 from adventure_wheel.adventure_wheel import replace_speed_markers
 from adventure_wheel.adventure_wheel import split_into_lines
 from adventure_wheel.adventure_wheel import split_markers
+from os import mkdir, pardir
+from os.path import abspath, basename, exists, join
+from tempfile import gettempdir
+from shutil import rmtree
+
+def get_test_dir() -> str:
+    """
+    Creates and returns test directory.
+
+    :return: File path of the test directory
+    :rtype: str
+    """
+    test_dir = abspath(join(abspath(gettempdir()), "advwheel_test"))
+    if(exists(test_dir)):
+        rmtree(test_dir)
+    mkdir(test_dir)
+    return test_dir
 
 def test_get_color():
     """
@@ -277,3 +296,108 @@ def test_get_decision_text():
     # Test getting desision text with invalid parameters
     assert get_decision_text([], visited) == []
     assert get_decision_text(None, visited) == []
+
+def test_get_file_list():
+    """
+    Tests the get_file_list function.
+    """
+    # Create test directories
+    test_dir = get_test_dir()
+    main_sub = abspath(join(test_dir, "sub"))
+    mkdir(main_sub)
+    inner_one = abspath(join(main_sub, "one"))
+    mkdir(inner_one)
+    inner_two = abspath(join(main_sub, "two"))
+    mkdir(inner_two)
+    # Create test files
+    inner_file = abspath(join(inner_one, "inner.txt"))
+    with open(inner_file, "w") as out_file:
+        out_file.write("TEST")
+    other_file = abspath(join(inner_one, "other.txt"))
+    with open(other_file, "w") as out_file:
+        out_file.write("TEST")
+    not_text = abspath(join(inner_two, "not_text.png"))
+    with open(not_text, "w") as out_file:
+        out_file.write("TEST")
+    sub_text = abspath(join(main_sub, "sub_text.txt"))
+    with open(sub_text, "w") as out_file:
+        out_file.write("TEST")
+    main_text = abspath(join(test_dir, "main_text.txt"))
+    with open(main_text, "w") as out_file:
+        out_file.write("TEST")
+    # Test that files were created
+    assert exists(inner_file)
+    assert exists(other_file)
+    assert exists(not_text)
+    assert exists(sub_text)
+    assert exists(main_text)
+    # Test getting files in single folder
+    files = get_file_list(inner_one)
+    assert len(files) == 2
+    assert len(files[0]) == 2
+    assert basename(files[0][0]) == "inner.txt"
+    assert abspath(join(files[0][0], pardir)) == abspath(inner_one)
+    assert files[0][1] == "inner"
+    assert len(files[1]) == 2
+    assert basename(files[1][0]) == "other.txt"
+    assert abspath(join(files[1][0], pardir)) == abspath(inner_one)
+    assert files[1][1] == "other"
+    # Test getting files with some non-text files
+    assert get_file_list(inner_two) == []
+    # Test getting files in subfolders
+    files = get_file_list(test_dir)
+    assert len(files) == 4
+    print(files)
+    assert basename(files[0][0]) == "main_text.txt"
+    assert abspath(join(files[0][0], pardir)) == abspath(test_dir)
+    assert files[0][1] == "main_text"
+    assert basename(files[1][0]) == "inner.txt"
+    assert abspath(join(files[1][0], pardir)) == abspath(inner_one)
+    assert files[1][1] == "inner"
+    assert basename(files[2][0]) == "other.txt"
+    assert abspath(join(files[2][0], pardir)) == abspath(inner_one)
+    assert files[2][1] == "other"
+    assert basename(files[3][0]) == "sub_text.txt"
+    assert abspath(join(files[3][0], pardir)) == abspath(main_sub)
+    assert files[3][1] == "sub_text"
+    # Test getting files from non-existant folder
+    non_dir = abspath(join(main_sub, "non_dir"))
+    assert get_file_list(non_dir) == []
+    # Test getting files with invalid parameters
+    assert get_file_list(None) == []
+    assert get_file_list() == []
+
+def test_read_file_as_lines():
+    """
+    Tests the read_file_as_lines function.
+    """
+    # Create test files
+    test_dir = get_test_dir()
+    one_line = abspath(join(test_dir, "one.txt"))
+    with open(one_line, "w") as out_file:
+        out_file.write("text")
+    multiline = abspath(join(test_dir, "multi.txt"))
+    with open(multiline, "w") as out_file:
+        out_file.write("Line One\nNext\nThird")
+    carriage = abspath(join(test_dir, "carriage.txt"))
+    with open(carriage, "w") as out_file:
+        out_file.write("Carriage\r\nReturn\n\rThings\r")
+    # Test that files were created
+    assert exists(one_line)
+    assert exists(multiline)
+    assert exists(carriage)
+    # Test reading file with only one line
+    lines = read_file_as_lines(one_line)
+    assert lines == ["text"]
+    # Test reading file with multiple lines
+    lines = read_file_as_lines(multiline)
+    assert lines == ["Line One", "Next", "Third"]
+    # Test reading file with carriage returns
+    lines = read_file_as_lines(carriage)
+    assert lines == ["Carriage", "Return", "Things"]
+    # Test reading non-existant file
+    non_existant = abspath(join(test_dir, "non.txt"))
+    assert read_file_as_lines(non_existant) == []
+    # Test reading file with invalid parameters
+    assert read_file_as_lines(None) == []
+    assert read_file_as_lines() == []
