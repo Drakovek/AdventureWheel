@@ -5,6 +5,7 @@ from adventure_wheel.adventure_wheel import format_story_text
 from adventure_wheel.adventure_wheel import get_characters
 from adventure_wheel.adventure_wheel import get_color
 from adventure_wheel.adventure_wheel import get_decision_text
+from adventure_wheel.adventure_wheel import get_file_by_name
 from adventure_wheel.adventure_wheel import get_file_list
 from adventure_wheel.adventure_wheel import get_link_options
 from adventure_wheel.adventure_wheel import read_file_as_lines
@@ -401,3 +402,43 @@ def test_read_file_as_lines():
     # Test reading file with invalid parameters
     assert read_file_as_lines(None) == []
     assert read_file_as_lines() == []
+
+def test_get_file_by_name():
+    """
+    Tests the get_file_by_name function.
+    """
+    # Create test files
+    test_dir = get_test_dir()
+    one_line = abspath(join(test_dir, "one.txt"))
+    with open(one_line, "w") as out_file:
+        out_file.write("text")
+    multiline = abspath(join(test_dir, "multi.txt"))
+    with open(multiline, "w") as out_file:
+        out_file.write("Line One\nNext\nThird")
+    carriage = abspath(join(test_dir, "carriage.txt"))
+    with open(carriage, "w") as out_file:
+        out_file.write("Carriage\r\nReturn\n\rThings\r")
+    # Test that files were created
+    assert exists(one_line)
+    assert exists(multiline)
+    assert exists(carriage)
+    # Test getting file by name
+    files = get_file_list(test_dir)
+    lines = get_file_by_name("one", files)
+    assert lines == ["text"]
+    lines = get_file_by_name("multi", files)
+    assert lines == ["Line One", "Next", "Third"]
+    lines = get_file_by_name("carriage", files)
+    assert lines == ["Carriage", "Return", "Things"]
+    # Test getting file if name isn't included
+    lines = get_file_by_name("not_included", files)
+    assert lines == []
+    # Test getting file if file doesn't exist
+    files.append(["/non/existant/name.txt", "name"])
+    lines = get_file_by_name("name", files)
+    assert lines == []
+    # Test getting file with invalid parameters
+    assert get_file_by_name("one", None) == []
+    assert get_file_by_name(None, files) == []
+    assert get_file_by_name(None, None) == []
+    assert get_file_by_name("", files) == []

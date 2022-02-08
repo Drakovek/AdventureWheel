@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from os import get_terminal_size, listdir, walk
-from os.path import abspath, basename, join
+from os.path import abspath, basename, isdir, join
 from time import sleep
 from typing import List
 
@@ -492,3 +492,94 @@ def get_decision_text(options:List[List[str]]=None,
         link_num += 1
     # Return the text
     return text
+
+def get_file_by_name(name:str=None, files:List[List[str]]=None) -> List[str]:
+    """
+    Returns the contents of the text file in the file list with a given name.
+    Name should not include the .txt extension.
+
+    :param name: Name to search for in file list, defaults to None
+    :type name: str, optional
+    :param files: List of files as gotten from get_file_list, defaults to None
+    :type files: list[list[str]]
+    :return: Contents of the text file with given name.
+    :rtype: list[str]
+    """
+    # Return empty list if paramaters are invalid
+    if name is None or files is None:
+        return []
+    # Get the path of the file with the given name
+    path = None
+    for file in files:
+        if file[1] == name:
+            path = file[0]
+            break
+    # Read the text file and return the contents
+    lines = read_file_as_lines(path)
+    return lines
+
+def get_next_story(lines:List[str]=None, characters:List[List[str]]=None) -> str:
+    """
+    Prints the next part of the story, and returns which choice the user picked.
+
+    :param lines: Lines of story text to print, defaults to None
+    :type lines: list[str], optional
+    :param characters: Character info as gotten from get_characters, defaults to None
+    :type characters: list[list[str]]
+    :return: File name of the option chosen by the user, without extension
+    :rtype: str
+    """
+    # Format the story text
+    new_lines = format_story_text(lines, characters)
+    # Get link options and print text
+    options = get_link_options(new_lines, True)
+    # Print decision text, if necessary
+    if len(options) > 1:
+        decision_lines = get_decision_text(options, [])
+        for line in decision_lines:
+            print_by_char(line)
+    # Return empty string if there are no options to choose
+    if options == []:
+        return ""
+    # Get player decision
+    decision = 0
+    if len(options) > 1:
+        decision = None
+        while decision is None:
+            try:
+                decision = int(input("> ")) - 1
+                if decision < 0 or decision > (len(options)-1):
+                    decision = None
+            except ValueError:
+                decision = None
+    # Return name of the chosen decision
+    return options[decision][0]
+
+def load_story(directory:str=None) -> bool:
+    """
+    Loads the story and starts the game.
+
+    :param directory: Directory in which to look for story files, defualts to None
+    :type directory: str, optional
+    :return: Whether reading story files was successful or not.
+    :rtype: bool
+    """
+    # Return False if directory is invalid
+    if directory is None or not isdir(directory):
+        return False
+    # Get list of story files
+    files = get_file_list(directory)
+    # Read character file
+    lines = get_file_by_name("characters", files)
+    characters = get_characters(lines)
+    # Return False if no character info was found
+    if characters == []:
+        print("Invalid character file.")
+        return False
+    # Start running the story
+    next_story = "start"
+    while not next_story == "":
+        lines = get_file_by_name(next_story, files)
+        next_story = get_next_story(lines, characters)
+    # Return True once story has completed
+    return True
