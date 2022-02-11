@@ -207,12 +207,25 @@ def test_format_story_text():
     # Test formatting story text in quotes
     story = format_story_text(["\"Some words\"", "\"More words!\""], [])
     assert story == ["Some words", "More words!"]
-    # Test formatting text with characters
+    # Test formatting story with no quotes
+    story = format_story_text(["No quotes", "Only text"], [])
+    assert story == ["No quotes", "Only text"]
+    # Test formatting text with multiple characters
     chars = [["jn", "John", "b", 1.0], ["lz", "Liz", "g", 2.0]]
-    story = format_story_text(["jn\"Words!\"", "lz\"Other {{0.5}}words\""], chars)
+    story = format_story_text(["lz\"Words!\"", "lz\"Other {{0.5}}words\""], chars)
     assert len(story) == 2
-    assert story[0] == "{{0}}{{b}}John: {{d}}{{1.0}}Words!"
+    assert story[0] == "{{0}}{{g}}Liz: {{d}}{{2.0}}Words!"
     assert story[1] == "{{0}}{{g}}Liz: {{d}}{{2.0}}Other {{1.0}}words"
+    # Test that new characters are added in between blocks
+    story = format_story_text(["Same", "Block", "lz\"New\"", "lz\"Block\"", "jn\"Thing\""], chars)
+    assert story[0] == "Same"
+    assert story[1] == "Block"
+    assert story[2] == "{{0}}"
+    assert story[3] == "{{0}}{{g}}Liz: {{d}}{{2.0}}New"
+    assert story[4] == "{{0}}{{g}}Liz: {{d}}{{2.0}}Block"
+    assert story[5] == "{{0}}"
+    assert story[6] == "{{0}}{{b}}John: {{d}}{{1.0}}Thing"
+    assert len(story) == 7
     # Test formatting text with incomplete quotations
     story = format_story_text(["\"Incomplete line.", "Another incomplete\""], [])
     assert story == ["\"Incomplete line.", "Another incomplete\""]
@@ -348,7 +361,6 @@ def test_get_file_list():
     # Test getting files in subfolders
     files = get_file_list(test_dir)
     assert len(files) == 4
-    print(files)
     assert basename(files[0][0]) == "main_text.txt"
     assert abspath(join(files[0][0], pardir)) == abspath(test_dir)
     assert files[0][1] == "main_text"

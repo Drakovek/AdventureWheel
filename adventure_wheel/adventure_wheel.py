@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from os import get_terminal_size, listdir, walk
+from os import get_terminal_size, listdir, system, walk
+from os import name as os_name
 from os.path import abspath, basename, isdir, join
 from time import sleep
 from typing import List
@@ -36,6 +37,21 @@ def get_color(color:str=None) -> str:
     else:
         # Default
         return "\033[0m"
+
+def wait_for_key_press():
+    """
+    Waits for a key press in the terminal.
+    """
+    input()
+
+def clear_screen():
+    """
+    Clears the terminal of text.
+    """
+    if os_name == "nt":
+        system("cls")
+    else:
+        system("clear")
 
 def get_file_list(directory:str=None) -> List[List[str]]:
     """
@@ -352,23 +368,26 @@ def format_story_text(lines:List[str]=None,
         return []
     # Run through each line
     formatted = []
+    prev_char = ""
+    next_line = ""
     for line in lines:
+        cur_char = ""
         if line is None or line == "":
             # Skip over line if it is empty
             continue
         elif line.endswith("\""):
             # Treat as standard text if line starts with quote
             if line.startswith("\""):
-                formatted.append(line[1:-1])
+                next_line = line[1:-1]
             else:
                 # Split character var name and text
                 index = line.find("\"")
-                var_name = line[:index]
+                cur_char = line[:index]
                 text = line[index+1:-1]
                 # Get character information
                 character = None
                 for char in chars:
-                    if char[0] == var_name:
+                    if char[0] == cur_char:
                         character = char
                         break
                 if character is None:
@@ -380,10 +399,19 @@ def format_story_text(lines:List[str]=None,
                 final_text = final_text + character[1] + ": {{d}}"
                 final_text = final_text + "{{" + str(character[3]) + "}}"
                 final_text = final_text + text
-                formatted.append(final_text)
+                next_line = final_text
         else:
             # Add current line unaltered if not quoted text
-            formatted.append(line)
+            next_line = line
+        # Add empty line if characters aren't equal
+        if not cur_char == prev_char:
+            formatted.append("{{0}}")
+        prev_char = cur_char
+        formatted.append(next_line)
+    # Remove empty lines from beginning of list
+    while len(formatted) > 0 and formatted[0] == "{{0}}":
+        del formatted[0]
+    # Return formatted list of text
     return formatted
 
 def print_by_char(string:str=None):
@@ -399,11 +427,14 @@ def print_by_char(string:str=None):
     escaped = add_escapes(string, width)
     # Split into markers
     blocks = split_markers(escaped)
-    timeout = 0.01
+    timeout = 0.02
     # Print character by character
     for block in blocks:
         if block.startswith("{{"):
-            timeout = float(block[2:-2]) * 0.01
+            try:
+                timeout = float(block[2:-2]) * 0.02
+            except ValueError:
+                timeout = 0.02
             continue
         else:
             size = len(block)
@@ -447,6 +478,9 @@ def get_link_options(lines:List[str]=None, print_lines:bool=True) -> List[List[s
     # Print string if specified
     if print_lines:
         for line in text:
+            if line == "{{0}}":
+                wait_for_key_press()
+                continue
             print_by_char(line)
     # Return full options
     return full_options
@@ -535,6 +569,7 @@ def get_next_story(lines:List[str]=None, characters:List[List[str]]=None) -> str
     options = get_link_options(new_lines, True)
     # Print decision text, if necessary
     if len(options) > 1:
+        print()
         decision_lines = get_decision_text(options, [])
         for line in decision_lines:
             print_by_char(line)
@@ -552,6 +587,9 @@ def get_next_story(lines:List[str]=None, characters:List[List[str]]=None) -> str
                     decision = None
             except ValueError:
                 decision = None
+        clear_screen()
+    else:
+        print()
     # Return name of the chosen decision
     return options[decision][0]
 
@@ -577,6 +615,7 @@ def load_story(directory:str=None) -> bool:
         print("Invalid character file.")
         return False
     # Start running the story
+    clear_screen()
     next_story = "start"
     while not next_story == "":
         lines = get_file_by_name(next_story, files)
